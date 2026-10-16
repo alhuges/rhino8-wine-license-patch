@@ -1,0 +1,49 @@
+using System;
+using System.IO;
+using System.Reflection;
+using System.Security.Cryptography;
+
+class Program
+{
+    static Assembly asm;
+    static Type t;
+
+    static object Inv(string name, Type[] sig, object[] args)
+    {
+        var m = t.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, sig, null);
+        return m.Invoke(null, args);
+    }
+
+    static void Main(string[] args)
+    {
+        string zc = args[0];
+        string dir = Path.GetDirectoryName(Path.GetFullPath(zc));
+        AppDomain.CurrentDomain.AssemblyResolve += (s, e) =>
+        {
+            var name = new AssemblyName(e.Name).Name;
+            foreach (var ext in new[] { ".dll", ".exe" })
+            {
+                string p = Path.Combine(dir, name + ext);
+                if (File.Exists(p)) { try { return Assembly.LoadFrom(p); } catch { } }
+            }
+            return null;
+        };
+        asm = Assembly.LoadFrom(Path.GetFullPath(zc));
+        t = asm.GetType("ZooCommon.ZooLicenseHelper");
+        Console.WriteLine("loaded " + asm.GetName().Name + " " + asm.GetName().Version);
+
+        string src = args[1], dst = args[2], from = args[3], to = args[4];
+        Type zlt = asm.GetType("ZooCommon.ZooLicense");
+        var readSig = new[] { typeof(Type), typeof(string), typeof(SymmetricAlgorithm) };
+        var algSig = new[] { typeof(string) };
+        object obj = Inv("ReadObjectFromEncryptedFile", readSig,
+            new object[] { zlt, src, Inv("GetAlgorithm", algSig, new object[] { from }) });
+        if (obj == null) { Console.WriteLine("READ FAILED"); return; }
+        Console.WriteLine("read OK; writing serial=" + to);
+        object ok = Inv("WriteObjectToEncryptedFile", new[] { typeof(object), typeof(string), typeof(bool) },
+            new object[] { obj, dst, false });
+        Console.WriteLine("write => " + ok);
+        object v = Inv("ReadEncryptedFile", new[] { typeof(string), typeof(string) }, new object[] { dst, to });
+        Console.WriteLine("verify => " + (v == null ? "null" : "OK"));
+    }
+}

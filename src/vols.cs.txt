@@ -1,0 +1,21 @@
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Text;
+
+class V
+{
+    [DllImport("Kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    static extern bool GetVolumeInformation(string rootPathName, StringBuilder volumeNameBuffer, int volumeNameSize, out uint volumeSerialNumber, out uint maximumComponentLength, out uint fileSystemFlags, StringBuilder fileSystemNameBuffer, int nFileSystemNameSize);
+
+    static void Main()
+    {
+        Console.WriteLine("SystemDirectory = " + Environment.SystemDirectory);
+        string root = Path.GetPathRoot(Environment.SystemDirectory);
+        Console.WriteLine("PathRoot = " + root);
+        uint ser, comp, flags;
+        bool ok = GetVolumeInformation(root, null, 0, out ser, out comp, out flags, null, 0);
+        Console.WriteLine("ok=" + ok + " serial=" + ser.ToString("X").ToUpper() + " err=" + Marshal.GetLastWin32Error());
+        Console.WriteLine("UserName = " + Environment.UserName);
+    }
+}
